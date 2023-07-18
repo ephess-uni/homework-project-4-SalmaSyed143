@@ -4,32 +4,62 @@ from datetime import datetime, timedelta
 from csv import DictReader, DictWriter
 from collections import defaultdict
 
-
 def reformat_dates(old_dates):
     """Accepts a list of date strings in format yyyy-mm-dd, re-formats each
     element to a format dd mmm yyyy--01 Jan 2001."""
-    pass
-
+    
+    re_formats = [datetime.strptime(each, "%Y-%m-%d").strftime('%d %b %Y') for each in old_dates]
+    
+    return re_formats
 
 def date_range(start, n):
     """For input date string `start`, with format 'yyyy-mm-dd', returns
     a list of of `n` datetime objects starting at `start` where each
     element in the list is one day after the previous."""
-    pass
+    if not isinstance(start, str) or not isinstance(n, int):
+        raise TypeError()
+    one_day_after = []
+    a = datetime.strptime(start, '%Y-%m-%d')
+    for i in range(n):
+        one_day_after.append(a + timedelta(days=i))
+    return one_day_after
 
 
 def add_date_range(values, start_date):
     """Adds a daily date range to the list `values` beginning with
     `start_date`.  The date, value pairs are returned as tuples
     in the returned list."""
-    pass
-
+    
+    adr = date_range(start_date, len(values))
+    values_zip_list = list(zip(adr, values))
+    return values_zip_list
 
 def fees_report(infile, outfile):
-    """Calculates late fees per patron id and writes a summary report to
-    outfile."""
-    pass
+    
+    headers = ("book_uid,isbn_13,patron_id,date_checkout,date_due,date_returned".
+              split(','))
+    
+    datawithfees = defaultdict(float)
+    
+    with open(infile, 'r') as fl:
+        linesData = DictReader(fl, fieldnames=headers)
+        rows = [row for row in linesData]
 
+    rows.pop(0)
+    for each_line in rows:
+        patronID = each_line['patron_id']
+        date_due = datetime.strptime(each_line['date_due'], "%m/%d/%Y")
+        date_returned_on = datetime.strptime(each_line['date_returned'], "%m/%d/%Y")
+        dsdrf = (date_returned_on - date_due).days
+        datawithfees[patronID]+= 0.25 * dsdrf if dsdrf > 0 else 0.0
+            
+    summary_report = [
+        {'patron_id': pn, 'late_fees': f'{fs:0.2f}'} for pn, fs in datawithfees.items()
+    ]
+    with open(outfile, 'w') as fl:
+        wtr = DictWriter(fl,['patron_id', 'late_fees'])
+        wtr.writeheader()
+        wtr.writerows(summary_report)
 
 # The following main selection block will only run when you choose
 # "Run -> Module" in IDLE.  Use this section to run test code.  The
